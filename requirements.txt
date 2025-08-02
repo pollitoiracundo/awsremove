@@ -1,0 +1,4 @@
+# No external Python dependencies required
+# This tool only requires:
+# - Python 3.6+
+# - AWS CLI installed and configured
