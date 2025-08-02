@@ -1,4 +1,17 @@
-# No external Python dependencies required
-# This tool only requires:
+# AWS Cleanup Tool - Retro Edition
+# 
+# No external Python dependencies required!
+# This tool uses only standard library modules for maximum compatibility.
+#
+# Requirements:
 # - Python 3.6+
 # - AWS CLI installed and configured
+# - Terminal with ANSI color support (most modern terminals)
+#
+# Optional for best experience:
+# - Terminal with Unicode support for fancy borders
+# - Terminal with 256 color support
+#
+# Installation:
+#   pip install awscli
+#   aws configure
