@@ -3,6 +3,8 @@ Billing inventory service for AWS cost analysis.
 """
 
 import json
+import os
+import subprocess
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from .base import BaseAWSService
@@ -224,9 +226,9 @@ class BillingService:
     
     def _run_aws_command(self, cmd: List[str]) -> Dict:
         """Run AWS command and return JSON result."""
-        import subprocess
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # Use current environment which should have AWS_PROFILE set
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return json.loads(result.stdout) if result.stdout.strip() else {}
         except subprocess.CalledProcessError as e:
             raise ResourceDiscoveryError(f"AWS command failed: {e}")

@@ -3,6 +3,7 @@ Base classes for AWS service discovery and management.
 """
 
 import json
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
@@ -44,7 +45,8 @@ class BaseAWSService(ABC):
         """Run an AWS CLI command and return parsed JSON result."""
         cmd = self.aws_cmd_base + cmd_args
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # Use current environment which should have AWS_PROFILE set
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return json.loads(result.stdout) if result.stdout.strip() else {}
         except subprocess.CalledProcessError as e:
             raise ResourceDiscoveryError(f"AWS command failed: {e}")
@@ -55,7 +57,8 @@ class BaseAWSService(ABC):
         """Run an AWS CLI command for deletion. Returns success status."""
         cmd = self.aws_cmd_base + cmd_args
         try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # Use current environment which should have AWS_PROFILE set
+            subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return True
         except subprocess.CalledProcessError:
             return False

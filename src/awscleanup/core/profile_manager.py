@@ -3,6 +3,7 @@ AWS Profile and Account Management.
 """
 
 import json
+import os
 import subprocess
 import configparser
 from pathlib import Path
@@ -87,20 +88,23 @@ class AWSProfileManager:
     
     def get_account_info(self, profile: str = None) -> AWSAccountInfo:
         """Get current AWS account information."""
-        cmd = ['aws', 'sts', 'get-caller-identity', '--output', 'json']
+        # Set up environment for this call
+        env = os.environ.copy()
         if profile and profile != 'default':
-            cmd.extend(['--profile', profile])
+            env['AWS_PROFILE'] = profile
+        elif 'AWS_PROFILE' in env:
+            del env['AWS_PROFILE']
+        
+        cmd = ['aws', 'sts', 'get-caller-identity', '--output', 'json']
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
             identity = json.loads(result.stdout)
             
             # Get current region
             region_cmd = ['aws', 'configure', 'get', 'region']
-            if profile and profile != 'default':
-                region_cmd.extend(['--profile', profile])
             
-            region_result = subprocess.run(region_cmd, capture_output=True, text=True)
+            region_result = subprocess.run(region_cmd, capture_output=True, text=True, env=env)
             region = region_result.stdout.strip() if region_result.returncode == 0 else 'us-east-1'
             
             # Determine environment type
@@ -146,11 +150,18 @@ class AWSProfileManager:
         return True
     
     def setup_aws_command(self, profile: str) -> List[str]:
-        """Setup AWS command with proper profile."""
+        """Setup AWS command with proper profile using environment variable."""
         self.current_profile = profile
-        base_cmd = ['aws']
+        
+        # Set AWS_PROFILE environment variable for all AWS CLI calls
         if profile and profile != 'default':
-            base_cmd.extend(['--profile', profile])
+            os.environ['AWS_PROFILE'] = profile
+        elif 'AWS_PROFILE' in os.environ:
+            # Remove AWS_PROFILE if using default profile
+            del os.environ['AWS_PROFILE']
+        
+        # Use simple aws command without --profile flag since we use env var
+        base_cmd = ['aws']
         self.aws_cmd_base = base_cmd  # Store the command base
         return base_cmd
     

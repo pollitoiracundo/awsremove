@@ -4,6 +4,7 @@ Resource discovery coordination and dependency mapping.
 
 import subprocess
 import json
+import os
 from typing import List, Dict, Set
 from collections import defaultdict
 from .models import AWSResource, CleanupSession
@@ -26,7 +27,7 @@ class ResourceDiscovery:
         """Get all available AWS regions."""
         try:
             cmd = self.aws_cmd_base + ['ec2', 'describe-regions', '--query', 'Regions[].RegionName', '--output', 'json']
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return json.loads(result.stdout)
         except Exception as e:
             print(f"Error getting regions: {e}")
