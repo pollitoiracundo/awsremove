@@ -6,6 +6,9 @@ from typing import Dict, List, Type
 from .base import BaseAWSService
 from .ec2_service import EC2Service
 from .s3_service import S3Service
+from .rds_service import RDSService
+from .elb_service import ELBService
+from .cloudwatch_service import CloudWatchService
 from ..core.exceptions import ServiceNotSupportedError
 
 
@@ -16,6 +19,9 @@ class ServiceFactory:
     _services: Dict[str, Type[BaseAWSService]] = {
         'ec2': EC2Service,
         's3': S3Service,
+        'rds': RDSService,
+        'elb': ELBService,
+        'cloudwatch': CloudWatchService,
         # Add more services here as they're implemented
     }
     

@@ -23,6 +23,8 @@ class Settings:
             's3': ServiceConfig('s3', enabled=True, protected=False),
             'rds': ServiceConfig('rds', enabled=True, protected=False),
             'lambda': ServiceConfig('lambda', enabled=True, protected=False),
+            'elb': ServiceConfig('elb', enabled=True, protected=False),
+            'cloudwatch': ServiceConfig('cloudwatch', enabled=True, protected=False),
             'iam': ServiceConfig('iam', enabled=False, protected=True),  # Protected by default
             'route53': ServiceConfig('route53', enabled=False, protected=True),
             'cloudformation': ServiceConfig('cloudformation', enabled=False, protected=True),

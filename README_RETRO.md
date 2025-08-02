@@ -17,6 +17,15 @@ An **epic 80s-style terminal interface** for discovering and safely cleaning up 
 
 ## ✨ Features
 
+### 💰 Billing & Cost Analysis
+- **Full cost inventory** with real-time estimates
+- **Cost breakdown by service** and category  
+- **Visual cost bars** and retro-styled reports
+- **Monthly cost projections** based on current usage
+- **Top cost resources** identification
+- **Export billing reports** to JSON
+- **Cost-aware resource selection**
+
 ### 🎮 Retro Experience
 - **80s-style ASCII art** and splash screens
 - **Neon color schemes** (Neon, Matrix, Classic)
@@ -43,11 +52,15 @@ An **epic 80s-style terminal interface** for discovering and safely cleaning up 
 - **Configuration management** with persistent settings
 
 ### ⚡ Supported Services
-- **EC2** (Instances, Volumes)
-- **S3** (Buckets)
-- **RDS** (Database instances)
-- **Lambda** (Functions)
-- *More services coming soon!*
+- **EC2** (Instances, Volumes) 💰
+- **S3** (Buckets) 💰  
+- **RDS** (Database instances, Clusters, Snapshots) 💰
+- **Lambda** (Functions) 💰
+- **ELB** (Classic, Application, Network Load Balancers) 💰
+- **CloudWatch** (Log Groups, Dashboards, Alarms) 💰
+
+💰 = Full billing/cost estimation support  
+*More services coming soon!*
 
 ## 🚀 Quick Start
 

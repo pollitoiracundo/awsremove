@@ -11,6 +11,7 @@ from .exceptions import AccountSecurityError, ProfileError
 from ..config.settings import Settings
 from ..ui.retro_ui import RetroUI
 from ..services.service_factory import ServiceFactory
+from ..services.billing_service import BillingService
 
 
 class AWSCleanupApp:
@@ -22,6 +23,7 @@ class AWSCleanupApp:
         self.ui = RetroUI(self.settings.ui_settings['color_scheme'])
         self.session: Optional[CleanupSession] = None
         self.discovery: Optional[ResourceDiscovery] = None
+        self.billing_service: Optional[BillingService] = None
         
     def run(self, profile: str = None) -> None:
         """Run the application."""
@@ -61,8 +63,9 @@ class AWSCleanupApp:
             self.session = CleanupSession(account_info=account_info)
             self.profile_manager.account_info = account_info
             
-            # Initialize discovery
+            # Initialize discovery and billing service
             self.discovery = ResourceDiscovery(self.profile_manager, self.settings)
+            self.billing_service = BillingService(self.profile_manager.aws_cmd_base)
             
             self.ui.show_message(f"Connected to AWS account {account_info.account_id}", "success", 1.5)
             
@@ -160,11 +163,15 @@ class AWSCleanupApp:
                 self._manage_services()
             elif action == 'manage_safety':
                 self._manage_safety_settings()
+            elif action == 'billing_inventory':
+                self._show_billing_inventory()
     
     def _create_main_menu(self) -> List[MenuItem]:
         """Create main menu items."""
         items = [
             MenuItem("🔍 Discover Resources", "discover_resources", hotkey="d"),
+            MenuItem("💰 Billing Inventory", "billing_inventory", 
+                    enabled=bool(self.session.resources), hotkey="b"),
             MenuItem("📋 List Resources", "list_resources", 
                     enabled=bool(self.session.resources), hotkey="l"),
             MenuItem("✅ Select Resources", "select_resources", 
@@ -193,8 +200,15 @@ class AWSCleanupApp:
             self.ui.show_message("Discovering AWS resources...", "info", 1.0)
             resources = self.discovery.discover_all_resources(self.session)
             
+            # Add billing information to all resources
+            for resource in resources:
+                if not resource.billing_info:
+                    billing_info = self.billing_service.estimate_resource_cost(resource)
+                    resource.billing_info = billing_info
+            
             if resources:
-                message = f"✅ Found {len(resources)} resources across enabled services!"
+                total_cost = sum(r.estimated_monthly_cost for r in resources)
+                message = f"✅ Found {len(resources)} resources (Est. ${total_cost:.2f}/month)"
                 self.ui.show_message(message, "success", 2.0)
             else:
                 self.ui.show_message("No resources found.", "warning", 2.0)
@@ -349,3 +363,65 @@ class AWSCleanupApp:
         """Manage safety settings."""
         # This would be a sub-menu for safety settings
         self.ui.show_message("Safety settings - Coming in next update!", "info", 2.0)
+    
+    def _show_billing_inventory(self) -> None:
+        """Show comprehensive billing inventory and cost analysis."""
+        if not self.session.resources:
+            self.ui.show_message("No resources discovered yet. Run discovery first.", "warning", 2.0)
+            return
+        
+        try:
+            # Generate billing report
+            billing_report = self.billing_service.generate_billing_report(self.session.resources)
+            
+            # Show billing inventory UI
+            action = self.ui.show_billing_inventory(billing_report, self.session.resources)
+            
+            if action == 'export_billing':
+                self._export_billing_report(billing_report)
+                
+        except Exception as e:
+            self.ui.show_message(f"Error generating billing report: {e}", "error", 3.0)
+    
+    def _export_billing_report(self, billing_report: dict) -> None:
+        """Export billing report to file."""
+        try:
+            import json
+            from datetime import datetime
+            
+            # Create export data
+            export_data = {
+                'timestamp': datetime.now().isoformat(),
+                'account_id': self.session.account_info.account_id,
+                'profile': self.session.account_info.profile,
+                'total_estimated_monthly_cost': billing_report['total_estimated_monthly_cost'],
+                'summary': {
+                    'total_resources': billing_report['total_resources'],
+                    'billing_resources': billing_report['billing_resources'],
+                    'by_service': billing_report['by_service'],
+                    'by_category': billing_report['by_category']
+                },
+                'top_cost_resources': [
+                    {
+                        'service': r.service,
+                        'resource_type': r.resource_type,
+                        'name': r.display_name,
+                        'identifier': r.identifier,
+                        'region': r.region,
+                        'estimated_monthly_cost': r.estimated_monthly_cost,
+                        'pricing_model': r.billing_info.pricing_model if r.billing_info else 'unknown'
+                    }
+                    for r in billing_report['top_cost_resources']
+                ]
+            }
+            
+            # Export to file
+            filename = f"aws_billing_inventory_{self.session.account_info.account_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            with open(filename, 'w') as f:
+                json.dump(export_data, f, indent=2)
+            
+            self.ui.show_message(f"✅ Billing report exported to: {filename}", "success", 3.0)
+            
+        except Exception as e:
+            self.ui.show_message(f"❌ Export failed: {e}", "error", 3.0)

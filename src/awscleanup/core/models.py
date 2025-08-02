@@ -30,6 +30,28 @@ class ResourceState(Enum):
 
 
 @dataclass
+class BillingInfo:
+    """Billing information for AWS resources."""
+    estimated_monthly_cost: Optional[float] = None
+    pricing_model: str = "unknown"  # on-demand, reserved, spot, etc.
+    billing_unit: str = "unknown"  # hours, GB, requests, etc.
+    usage_metrics: Dict = field(default_factory=dict)
+    cost_categories: List[str] = field(default_factory=list)  # compute, storage, data-transfer
+    
+    @property
+    def has_cost_estimate(self) -> bool:
+        """Check if cost estimate is available."""
+        return self.estimated_monthly_cost is not None
+    
+    @property
+    def formatted_cost(self) -> str:
+        """Get formatted monthly cost."""
+        if self.estimated_monthly_cost is None:
+            return "Unknown"
+        return f"${self.estimated_monthly_cost:.2f}/month"
+
+
+@dataclass
 class AWSResource:
     """Represents an AWS resource with dependencies."""
     service: str
@@ -41,6 +63,7 @@ class AWSResource:
     dependents: List[str] = field(default_factory=list)
     metadata: Dict = field(default_factory=dict)
     state: ResourceState = ResourceState.UNKNOWN
+    billing_info: Optional[BillingInfo] = None
     
     @property
     def display_name(self) -> str:
@@ -51,6 +74,18 @@ class AWSResource:
     def full_identifier(self) -> str:
         """Get a unique identifier including service and type."""
         return f"{self.service}:{self.resource_type}:{self.identifier}"
+    
+    @property
+    def generates_cost(self) -> bool:
+        """Check if this resource generates billing costs."""
+        return self.billing_info is not None
+    
+    @property
+    def estimated_monthly_cost(self) -> float:
+        """Get estimated monthly cost or 0."""
+        if self.billing_info and self.billing_info.has_cost_estimate:
+            return self.billing_info.estimated_monthly_cost
+        return 0.0
 
 
 @dataclass
