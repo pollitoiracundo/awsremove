@@ -17,6 +17,7 @@ class AWSProfileManager:
     def __init__(self):
         self.current_profile = None
         self.account_info = None
+        self.aws_cmd_base = ['aws']  # Default AWS command base
         self.safe_accounts: Set[str] = set()
         self.protected_accounts: Set[str] = set()
         self.load_safety_config()
@@ -150,6 +151,7 @@ class AWSProfileManager:
         base_cmd = ['aws']
         if profile and profile != 'default':
             base_cmd.extend(['--profile', profile])
+        self.aws_cmd_base = base_cmd  # Store the command base
         return base_cmd
     
     def add_safe_account(self, account_id: str) -> None:

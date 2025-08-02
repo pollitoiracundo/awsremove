@@ -59,45 +59,59 @@ class Terminal:
     @staticmethod
     def get_key() -> str:
         """Get a single keypress."""
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
         try:
-            tty.cbreak(fd)
-            key = sys.stdin.read(1)
-            
-            # Handle special keys (arrows, etc.)
-            if key == '\033':  # ESC sequence
-                key += sys.stdin.read(2)
-                if key == '\033[A':
-                    return 'UP'
-                elif key == '\033[B':
-                    return 'DOWN'
-                elif key == '\033[C':
-                    return 'RIGHT'
-                elif key == '\033[D':
-                    return 'LEFT'
-                elif key == '\033[H':
-                    return 'HOME'
-                elif key == '\033[F':
-                    return 'END'
-            elif key == '\n' or key == '\r':
-                return 'ENTER'
-            elif key == '\x7f' or key == '\x08':
-                return 'BACKSPACE'
-            elif key == '\x1b':
-                return 'ESCAPE'
-            elif key == ' ':
-                return 'SPACE'
-            elif key == '\t':
-                return 'TAB'
-            elif ord(key) == 3:  # Ctrl+C
-                return 'CTRL_C'
-            elif ord(key) == 17:  # Ctrl+Q
-                return 'CTRL_Q'
-            
-            return key
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                # Try to use cbreak mode for single character input
+                if hasattr(tty, 'cbreak'):
+                    tty.cbreak(fd)
+                else:
+                    # Fallback for systems without cbreak
+                    tty.setraw(fd)
+                
+                key = sys.stdin.read(1)
+                
+                # Handle special keys (arrows, etc.)
+                if key == '\033':  # ESC sequence
+                    try:
+                        key += sys.stdin.read(2)
+                    except:
+                        return 'ESCAPE'
+                    
+                    if key == '\033[A':
+                        return 'UP'
+                    elif key == '\033[B':
+                        return 'DOWN'
+                    elif key == '\033[C':
+                        return 'RIGHT'
+                    elif key == '\033[D':
+                        return 'LEFT'
+                    elif key == '\033[H':
+                        return 'HOME'
+                    elif key == '\033[F':
+                        return 'END'
+                elif key == '\n' or key == '\r':
+                    return 'ENTER'
+                elif key == '\x7f' or key == '\x08':
+                    return 'BACKSPACE'
+                elif key == '\x1b':
+                    return 'ESCAPE'
+                elif key == ' ':
+                    return 'SPACE'
+                elif key == '\t':
+                    return 'TAB'
+                elif ord(key) == 3:  # Ctrl+C
+                    return 'CTRL_C'
+                elif ord(key) == 17:  # Ctrl+Q
+                    return 'CTRL_Q'
+                
+                return key
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        except (ImportError, AttributeError, OSError):
+            # Fallback for systems without termios/tty support
+            return input("Press Enter to continue: ").strip() or 'ENTER'
 
 
 class RetroEffects:

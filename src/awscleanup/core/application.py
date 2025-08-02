@@ -10,6 +10,7 @@ from .discovery import ResourceDiscovery
 from .exceptions import AccountSecurityError, ProfileError
 from ..config.settings import Settings
 from ..ui.retro_ui import RetroUI
+from ..ui.colors import Color
 from ..services.service_factory import ServiceFactory
 from ..services.billing_service import BillingService
 
@@ -111,10 +112,10 @@ class AWSCleanupApp:
                 x = 8
                 
                 if i == self.ui.selected_index:
-                    prefix = f"{self.ui.colors.menu_selected}▶ {item.label}{self.ui.colors.RESET}"
+                    prefix = f"{self.ui.colors.menu_selected}▶ {item.label}{Color.RESET}"
                 else:
                     color = self.ui.colors.menu_item if item.enabled else self.ui.colors.menu_disabled
-                    prefix = f"{color}  {item.label}{self.ui.colors.RESET}"
+                    prefix = f"{color}  {item.label}{Color.RESET}"
                 
                 self.ui.terminal.move_cursor(x, y)
                 print(prefix)
@@ -300,7 +301,7 @@ class AWSCleanupApp:
         for i, msg in enumerate(messages):
             if i < self.ui.terminal.height - 6:
                 self.ui.terminal.move_cursor(5, 4 + i)
-                print(f"{self.ui.colors.info}{msg}{self.ui.colors.RESET}")
+                print(f"{self.ui.colors.info}{msg}{Color.RESET}")
         
         self.ui.terminal.get_key()
     
