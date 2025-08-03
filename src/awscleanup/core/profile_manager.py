@@ -118,6 +118,25 @@ class AWSProfileManager:
                 region=region,
                 environment_type=env_type
             )
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 253:
+                available_profiles = self.get_available_profiles()
+                available_profiles = [p for p in available_profiles if p != 'default']
+                if available_profiles:
+                    raise ProfileError(
+                        f"No credentials found for profile '{profile or 'default'}'. "
+                        f"Available profiles: {', '.join(available_profiles)}. "
+                        f"Use --profile <profile_name> to specify a profile."
+                    )
+                else:
+                    raise ProfileError(
+                        "No AWS credentials found. Run 'aws configure' to set up credentials "
+                        "or create a profile with 'aws configure --profile <profile_name>'."
+                    )
+            else:
+                raise ProfileError(f"AWS CLI error (exit code {e.returncode}): {e.stderr or e}")
+        except json.JSONDecodeError as e:
+            raise ProfileError(f"Failed to parse AWS response: {e}")
         except Exception as e:
             raise ProfileError(f"Failed to get account information: {e}")
     
@@ -190,3 +209,64 @@ class AWSProfileManager:
             self.save_safety_config()
             return True
         return False
+    
+    def get_configured_region(self, profile: str = None) -> str:
+        """Get the configured region for a profile."""
+        # Set up environment for this call
+        env = os.environ.copy()
+        if profile and profile != 'default':
+            env['AWS_PROFILE'] = profile
+        elif 'AWS_PROFILE' in env:
+            del env['AWS_PROFILE']
+        
+        try:
+            region_cmd = ['aws', 'configure', 'get', 'region']
+            result = subprocess.run(region_cmd, capture_output=True, text=True, env=env)
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+            else:
+                return None
+        except Exception:
+            return None
+    
+    def set_default_region(self, profile: str, region: str) -> None:
+        """Set default region for a profile."""
+        try:
+            env = os.environ.copy()
+            if profile and profile != 'default':
+                env['AWS_PROFILE'] = profile
+            elif 'AWS_PROFILE' in env:
+                del env['AWS_PROFILE']
+            
+            cmd = ['aws', 'configure', 'set', 'region', region]
+            subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
+        except subprocess.CalledProcessError as e:
+            raise ProfileError(f"Failed to set region for profile {profile}: {e}")
+    
+    def get_available_regions_simple(self, profile: str = None) -> List[str]:
+        """Get available regions using a simple approach with default region."""
+        # Common AWS regions as fallback
+        common_regions = [
+            'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+            'eu-central-1', 'eu-west-1', 'eu-west-2', 'eu-west-3',
+            'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2',
+            'ap-south-1', 'sa-east-1', 'ca-central-1'
+        ]
+        
+        try:
+            # Set up environment
+            env = os.environ.copy()
+            if profile and profile != 'default':
+                env['AWS_PROFILE'] = profile
+            elif 'AWS_PROFILE' in env:
+                del env['AWS_PROFILE']
+            
+            # Try to get regions using us-east-1 as default
+            cmd = ['aws', 'ec2', 'describe-regions', '--region', 'us-east-1', 
+                   '--query', 'Regions[].RegionName', '--output', 'json']
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
+            regions = json.loads(result.stdout)
+            return sorted(regions)
+        except Exception:
+            # Fallback to common regions if API call fails
+            return common_regions

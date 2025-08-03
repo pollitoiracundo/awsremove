@@ -20,18 +20,27 @@ class ResourceDiscovery:
     def __init__(self, profile_manager: AWSProfileManager, settings: Settings):
         self.profile_manager = profile_manager
         self.settings = settings
-        self.aws_cmd_base = profile_manager.setup_aws_command(profile_manager.current_profile)
+        # Use the already configured aws_cmd_base from profile manager
+        self.aws_cmd_base = profile_manager.aws_cmd_base
         self.dependency_map = defaultdict(set)
     
     def get_available_regions(self) -> List[str]:
         """Get all available AWS regions."""
         try:
-            cmd = self.aws_cmd_base + ['ec2', 'describe-regions', '--query', 'Regions[].RegionName', '--output', 'json']
+            # Get configured default region first
+            configured_region = self.profile_manager.get_configured_region(self.profile_manager.current_profile)
+            default_region = configured_region or 'us-east-1'
+            
+            # Use the default region for the describe-regions call
+            cmd = self.aws_cmd_base + ['ec2', 'describe-regions', '--region', default_region, 
+                                     '--query', 'Regions[].RegionName', '--output', 'json']
             result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return json.loads(result.stdout)
         except Exception as e:
             print(f"Error getting regions: {e}")
-            return ['us-east-1']  # fallback
+            # Fallback to configured region or us-east-1
+            configured_region = self.profile_manager.get_configured_region(self.profile_manager.current_profile)
+            return [configured_region or 'us-east-1']
     
     def discover_all_resources(self, session: CleanupSession) -> List[AWSResource]:
         """Discover all AWS resources across enabled services."""

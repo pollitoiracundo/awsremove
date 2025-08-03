@@ -54,6 +54,17 @@ class AWSCleanupApp:
             else:
                 selected_profile = self._select_profile_interactive()
             
+            # Setup AWS command with profile (this sets the environment variable)
+            self.profile_manager.setup_aws_command(selected_profile)
+            
+            # Check if region is configured, if not, prompt user to select one
+            configured_region = self.profile_manager.get_configured_region(selected_profile)
+            if not configured_region:
+                self.ui.show_message(f"Profile '{selected_profile}' has no default region configured.", "warning", 2.0)
+                selected_region = self._select_region_interactive(selected_profile)
+                self.profile_manager.set_default_region(selected_profile, selected_region)
+                self.ui.show_message(f"Set default region to {selected_region} for profile {selected_profile}", "success", 2.0)
+            
             # Get account information
             account_info = self.profile_manager.get_account_info(selected_profile)
             
@@ -64,7 +75,7 @@ class AWSCleanupApp:
             self.session = CleanupSession(account_info=account_info)
             self.profile_manager.account_info = account_info
             
-            # Initialize discovery and billing service
+            # Initialize discovery and billing service (now that profile is set)
             self.discovery = ResourceDiscovery(self.profile_manager, self.settings)
             self.billing_service = BillingService(self.profile_manager.aws_cmd_base)
             
@@ -133,6 +144,43 @@ class AWSCleanupApp:
                     return profiles[profile_index]
             elif key == 'ESCAPE' or key == 'CTRL_C':
                 sys.exit(0)
+    
+    def _select_region_interactive(self, profile: str) -> str:
+        """Interactive region selection for profiles without default region."""
+        self.ui.show_message("No default region configured for this profile.", "warning", 2.0)
+        
+        # Get available regions
+        regions = self.profile_manager.get_available_regions_simple(profile)
+        
+        # Popular regions to show first
+        popular_regions = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1']
+        available_popular = [r for r in popular_regions if r in regions]
+        
+        self.ui.terminal.clear_screen()
+        print(f"\n{self.ui.colors.accent}┌─ Region Selection ─┐{Color.RESET}")
+        print(f"{self.ui.colors.info}Profile '{profile}' needs a default region.{Color.RESET}")
+        print(f"\n{self.ui.colors.accent}Popular regions:{Color.RESET}")
+        
+        for i, region in enumerate(available_popular[:4]):
+            print(f"  {self.ui.colors.menu_item}{i+1}. {region}{Color.RESET}")
+        
+        print(f"\n{self.ui.colors.accent}Enter choice (1-{len(available_popular)}), or 'q' to quit: {Color.RESET}", end="")
+        
+        while True:
+            key = self.ui.terminal.get_key()
+            
+            if key.isdigit():
+                choice = int(key) - 1
+                if 0 <= choice < len(available_popular):
+                    selected_region = available_popular[choice]
+                    print(f"\n{self.ui.colors.success}Selected: {selected_region}{Color.RESET}")
+                    return selected_region
+                else:
+                    print(f"\n{self.ui.colors.error}Invalid choice. Enter 1-{len(available_popular)}: {Color.RESET}", end="")
+            elif key.lower() == 'q' or key == 'ESCAPE' or key == 'CTRL_C':
+                sys.exit(0)
+            else:
+                print(f"\n{self.ui.colors.error}Invalid input. Enter 1-{len(available_popular)} or 'q': {Color.RESET}", end="")
     
     def _main_loop(self) -> None:
         """Main application loop."""
