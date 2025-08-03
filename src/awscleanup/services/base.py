@@ -44,12 +44,33 @@ class BaseAWSService(ABC):
     def _run_aws_command(self, cmd_args: List[str]) -> Dict[str, Any]:
         """Run an AWS CLI command and return parsed JSON result."""
         cmd = self.aws_cmd_base + cmd_args
+        
+        # Create environment with AWS_PROFILE explicitly set
+        env = os.environ.copy()
+        
         try:
-            # Use current environment which should have AWS_PROFILE set
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
             return json.loads(result.stdout) if result.stdout.strip() else {}
         except subprocess.CalledProcessError as e:
-            raise ResourceDiscoveryError(f"AWS command failed: {e}")
+            if e.returncode == 253:
+                raise ResourceDiscoveryError(
+                    f"AWS credentials not found. Please configure AWS credentials or specify a valid profile. "
+                    f"Command failed: {' '.join(cmd)}"
+                )
+            elif e.returncode == 254:
+                raise ResourceDiscoveryError(
+                    f"AWS access denied. Check your AWS permissions for the current profile. "
+                    f"Error: {e.stderr or 'Permission denied'}"
+                )
+            else:
+                error_msg = e.stderr.decode() if hasattr(e.stderr, 'decode') else str(e.stderr or e)
+                if "UnauthorizedOperation" in error_msg or "AccessDenied" in error_msg:
+                    raise ResourceDiscoveryError(
+                        f"AWS access denied. The current AWS user/role does not have sufficient permissions. "
+                        f"Error: {error_msg}"
+                    )
+                else:
+                    raise ResourceDiscoveryError(f"AWS command failed (exit code {e.returncode}): {error_msg}")
         except json.JSONDecodeError as e:
             raise ResourceDiscoveryError(f"Failed to parse AWS response: {e}")
     

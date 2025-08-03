@@ -231,7 +231,12 @@ class BillingService:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=os.environ)
             return json.loads(result.stdout) if result.stdout.strip() else {}
         except subprocess.CalledProcessError as e:
-            raise ResourceDiscoveryError(f"AWS command failed: {e}")
+            if e.returncode == 253:
+                raise ResourceDiscoveryError(
+                    f"AWS credentials not found for billing service. Please configure AWS credentials or specify a valid profile."
+                )
+            else:
+                raise ResourceDiscoveryError(f"AWS command failed (exit code {e.returncode}): {e.stderr or e}")
         except json.JSONDecodeError as e:
             raise ResourceDiscoveryError(f"Failed to parse AWS response: {e}")
     
